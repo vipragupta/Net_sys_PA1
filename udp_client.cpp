@@ -11,9 +11,10 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
+#include <time.h>
 
-#define MAXBUFSIZE 100
-#define MAXFILEBUFFSIZE 1048576		//1048576 bytes or 10 MB
+#define MAXBUFSIZE 1048576		//1048576 bytes or 10 MB
+#define FILEPACKETSIZE 500			// 10kB
 
 /* You will have to modify the program below */
 
@@ -23,14 +24,56 @@ size_t getFileSize(FILE *file) {
   	return file_size;
 }
 
+int getTotalNumberOfPackets(size_t file_size) {
+
+	int packets = file_size/FILEPACKETSIZE;
+  	if (file_size % FILEPACKETSIZE > 0) {
+  		packets++;
+  	}
+  	return packets;
+}
+
+char *getClientID() {
+	srand (time(NULL));
+  	char *clientId;
+  	clientId = (char *) malloc(9);
+  	int i = 0;
+  	while(i<4){
+  		clientId[i] = (char)(rand() % 10 + 64);
+  		i++;
+  	}
+  	clientId[i++] = '#';
+  	clientId[i++] = '#';
+  	clientId[i++] = '#';
+  	clientId[i++] = '#';
+  	clientId[i++] = '#';
+  	clientId[i++] = '#';
+  	return clientId;
+}
+
+char *getPacketHeader(char *clientId, int seqNo, int totalPackets, char *fileName, char *cmd) {
+	char header[MAXBUFSIZE];
+
+}
+
+long unsigned int getBufferContentSize(char buffer[]) {
+	long unsigned int buffSize = 0;
+
+	while (buffer[buffSize] != '\0') {
+		buffSize++;
+	}
+
+	return buffSize+1;
+}
+
 int main (int argc, char * argv[])
 {
 
 	int nbytes;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
 	char buffer[MAXBUFSIZE];
-	char file_buffer[MAXFILEBUFFSIZE];
-
+	char file_buffer[FILEPACKETSIZE];
+	char *clientId = getClientID();
 	struct sockaddr_in server;              //"Internet socket address structure"
 
 	if (argc < 3)
@@ -39,11 +82,6 @@ int main (int argc, char * argv[])
 		exit(1);
 	}
 
-	/******************
-	  Here we populate a sockaddr_in struct with
-	  information regarding where we'd like to send our packet 
-	  i.e the Server.
-	 ******************/
 	bzero(&server,sizeof(server));               //zero the struct
 	server.sin_family = AF_INET;                 //address family
 	server.sin_port = htons(atoi(argv[2]));      //sets port to network byte order
@@ -54,74 +92,64 @@ int main (int argc, char * argv[])
 	{
 		printf("unable to create socket");
 	}
-
-	/******************
-	  sendto() sends immediately.  
-	  it will report an error if the message fails to leave the computer
-	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
-	 ******************/
 	
 	//Read a file.
 	FILE *file;
-	file = fopen("foo2", "r");
+	file = fopen("foo1", "r");
 	if(file == NULL)
     {
       printf("file does not exist\n");
     }
 
   	size_t file_size = getFileSize(file); 		//Tells the file size in bytes.
-  	printf("file_size: %lu\n", file_size);
+  	printf("file_size: %lu\n\n", file_size);
 
   	fseek(file, 0, SEEK_SET);
 
-  	/*
-	size_t fread(void *buffer, size_t element_size, size_t elements, FILE *file)
-	buffer      : buffer to read into
-	element_size: size of each element i.e. size of each element in bytes
-	elements    : number of elements of specified size to be read.
-	file 	 	: file to read the bytes from. 
+  	int count = 0;
+  	int totalPackets = getTotalNumberOfPackets(file_size);
 
-	it returns the number of elements sucessfully read.
-  	*/
+  	while (count < 3) {
 
-  	int byte_read = fread(file_buffer, 1, file_size, file);
+	  	int byte_read = fread(file_buffer, 1, FILEPACKETSIZE, file);
+	  	if( byte_read <= 0)
+	    {
+	      printf("unable to copy file into file_buffer\n");
+	      exit(1);
+	    }
 
-  	printf("First byte is: %x\n", file_buffer[0]);
+	  	strcpy(buffer, clientId);     
+	  	strcat(buffer, file_buffer);
+	  	printf("Buffer Content:%lu\n", getBufferContentSize(file_buffer));
+	  	printf("BUFFER: \n:%s:\n\n", buffer);
 
-  	if( byte_read <= 0)
-    {
-      printf("unable to copy file into buffer\n");
-      exit(1);
-    }
+	    nbytes = sendto(sock, buffer, sizeof(clientId) + getBufferContentSize(file_buffer), 0, (struct sockaddr *)&server, sizeof(server));
 
-    nbytes = sendto(sock, file_buffer, file_size, 0, (struct sockaddr *)&server, sizeof(server));
+	    if (nbytes < 0){
+			printf("Error in sendto\n");
+		}
 
-    if (nbytes < 0){
-		printf("Error in sendto\n");
-	}
-
-  	bzero(file_buffer,sizeof(file_buffer));
-    //Read a file ends
-
-
-  	/*Simple message sending
-	char command[] = "apple";	
-	nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *)&server, sizeof(server));
-
-	if (nbytes < 0){
-		printf("Error in sendto\n");
-	}
-	bzero(buffer,sizeof(buffer));
-	Simple message sending ends.
-	*/
-
+	  	bzero(file_buffer,sizeof(file_buffer));
+	  	bzero(buffer,sizeof(buffer));
+	    //Read a file ends
 	
-	unsigned int server_length = sizeof(server);
-	nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
+		unsigned int server_length = sizeof(server);
+		nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
 
-	printf("Server says %s\n", buffer);
-
+		printf("Server says %s\n", buffer);
+		count++;
+	}	
 	close(sock);
 
 }
 
+/*Simple message sending
+		char command[] = "apple";	
+		nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *)&server, sizeof(server));
+
+		if (nbytes < 0){
+			printf("Error in sendto\n");
+		}
+		bzero(buffer,sizeof(buffer));
+		Simple message sending ends.
+		*/
