@@ -15,7 +15,13 @@
 /* You will have to modify the program below */
 
 #define MAXBUFSIZE 2000
-#define MAXFILEBUFFSIZE 500		//1048576 bytes or 10 MB
+#define FILEPACKETSIZE 510		//1048576 bytes or 10 MB
+
+struct packet
+{
+	char clientId[4];
+	char data[FILEPACKETSIZE];
+};
 
 long unsigned int getBufferContentSize(char buffer[]) {
 	long unsigned int buffSize = 0;
@@ -67,11 +73,11 @@ char *getClientId(char buffer[]) {
 char *getFileContent(char buffer[]) {
 	long unsigned int buffSize = getStartingIndex(buffer, 6);
 
-	char *file_buffer = (char *) malloc(MAXFILEBUFFSIZE+1);
+	char *file_buffer = (char *) malloc(FILEPACKETSIZE+1);
 	file_buffer[0] = '\0';
   	buffSize++;
   	int i=0;
-  	printf("^^^Initial FILEBUFFER\n%s\n\n", file_buffer);
+  	//printf("^^^Initial FILEBUFFER\n%s\n\n", file_buffer);
 	if (buffSize != -1) {	
 		while (buffer[buffSize] != '\0') {
 			file_buffer[i++] = buffer[buffSize++];
@@ -89,7 +95,6 @@ int main (int argc, char * argv[] )
 	unsigned int remote_length;            //length of the sockaddr_in structure
 	int nbytes;                            //number of bytes we receive in our message
 	char buffer[MAXBUFSIZE];               //a buffer to store our received message
-	FILE *file;
 
 	if (argc != 2)
 	{
@@ -116,28 +121,34 @@ int main (int argc, char * argv[] )
 
 	remote_length = sizeof(remote);
 
+	FILE *file;
+
+	/*char test[10] = "vipra";
+	file = fopen("foo_test","ab");
+	int fileSize = fwrite(test , 1, sizeof(test), file);
+	fclose(file);
+	*/
+	
 	while (1) {
+		printf("DATA RECEIVED\n");
 		//File receive
  		
  		bzero(buffer,sizeof(buffer));
- 		printf("Initial buffer: \n:%s:\n\n\n\n", buffer);
+	    struct packet pac;
 
-	    if (recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &remote_length)<0)
+	    if (recvfrom(sock, &pac, sizeof(packet), 0, (struct sockaddr *)&remote, &remote_length)<0)
 	    {
 	    	printf("error in recieving the file\n");
 	    	continue;
 	    }
-	    printf("buffer: %lu  %lu:\n\n", sizeof(buffer), getBufferContentSize(buffer));
-	    printf("buffer: \n:%s:\n\n\n\n", buffer);
-	    file = fopen("foo1_new","ab");
-	    char *clientId = getClientId(buffer);
-	    char *file_buffer = getFileContent(buffer);
-
-	    printf("\n\nclientId:%s\n\n", clientId);
+	    //printf("CClientId:%s:\n\n", pac.clientId);
 	    
-
-	    int fileSize = fwrite(file_buffer , 1, getBufferContentSize(file_buffer)-1, file);
-	    //int fileSize = write(file, file_buffer, sizeof(file_buffer));
+	    file = fopen("foo_test","ab");
+	   
+	    char *clientId = pac.clientId;				//getClientId(buffer);
+	    char *file_buffer = pac.data;				//getFileContent(buffer);
+	    printf("data:%s:\n", file_buffer);
+	    int fileSize = fwrite(file_buffer , 1, getBufferContentSize(file_buffer), file);
 
 	    printf("Size of File received:%d  %lu\n", fileSize, getBufferContentSize(file_buffer));
 

@@ -18,6 +18,12 @@
 
 /* You will have to modify the program below */
 
+struct packet
+{
+	char clientId[4];
+	char data[FILEPACKETSIZE];
+};
+
 size_t getFileSize(FILE *file) {
 	fseek(file, 0, SEEK_END);
   	size_t file_size = ftell(file);
@@ -36,18 +42,12 @@ int getTotalNumberOfPackets(size_t file_size) {
 char *getClientID() {
 	srand (time(NULL));
   	char *clientId;
-  	clientId = (char *) malloc(9);
+  	clientId = (char *) malloc(4);
   	int i = 0;
   	while(i<4){
   		clientId[i] = (char)(rand() % 10 + 64);
   		i++;
   	}
-  	clientId[i++] = '#';
-  	clientId[i++] = '#';
-  	clientId[i++] = '#';
-  	clientId[i++] = '#';
-  	clientId[i++] = '#';
-  	clientId[i++] = '#';
   	return clientId;
 }
 
@@ -73,7 +73,7 @@ int main (int argc, char * argv[])
 	int sock;                               //this will be our socket
 	char buffer[MAXBUFSIZE];
 	char file_buffer[FILEPACKETSIZE];
-	char *clientId = getClientID();
+	char *client = getClientID();
 	struct sockaddr_in server;              //"Internet socket address structure"
 
 	if (argc < 3)
@@ -109,7 +109,7 @@ int main (int argc, char * argv[])
   	int count = 0;
   	int totalPackets = getTotalNumberOfPackets(file_size);
 
-  	while (count < 3) {
+  	while (count < totalPackets) {
 
 	  	int byte_read = fread(file_buffer, 1, FILEPACKETSIZE, file);
 	  	if( byte_read <= 0)
@@ -118,12 +118,27 @@ int main (int argc, char * argv[])
 	      exit(1);
 	    }
 
-	  	strcpy(buffer, clientId);     
-	  	strcat(buffer, file_buffer);
-	  	printf("Buffer Content:%lu\n", getBufferContentSize(file_buffer));
-	  	printf("BUFFER: \n:%s:\n\n", buffer);
+	    struct packet pack;
+	    //struct packet *pac = (struct packet*) malloc(sizeof(struct packet));
 
-	    nbytes = sendto(sock, buffer, sizeof(clientId) + getBufferContentSize(file_buffer), 0, (struct sockaddr *)&server, sizeof(server));
+	    printf("Packet created\n");
+	    //printf("ClientId: %s  %s\n", client, pack.clientId);
+	    
+	    for (int i =0; i< 4;i++) {
+	    	pack.clientId[i] = client[i];
+	    }
+	    
+	    printf("clientid written: %s\n", pack.clientId);
+	    strcpy(pack.data, file_buffer);
+	    printf("data written\n");
+	    //memcpy(&pac->data, file_buffer, sizeof(file_buffer));
+
+	  	//strcpy(buffer, client);     
+	  	//strcat(buffer, file_buffer);
+	  	printf("Buffer Content:%lu\n", getBufferContentSize(file_buffer));
+	  	printf("BUFFER: \n:%s:\n\n", pack.data);
+
+	    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 
 	    if (nbytes < 0){
 			printf("Error in sendto\n");
