@@ -12,6 +12,7 @@
 #include <memory.h>
 #include <errno.h>
 #include <time.h>
+#include <math.h>
 
 #define MAXBUFSIZE 1048576		//1048576 bytes or 10 MB
 #define FILEPACKETSIZE 500			// 10kB
@@ -20,8 +21,9 @@
 
 struct packet
 {
-	char clientId[4];
-	char data[FILEPACKETSIZE];
+	int clientId;
+	unsigned char data[FILEPACKETSIZE];
+	int dataSize;
 };
 
 size_t getFileSize(FILE *file) {
@@ -39,24 +41,19 @@ int getTotalNumberOfPackets(size_t file_size) {
   	return packets;
 }
 
-char *getClientID() {
+int getClientID() {
 	srand (time(NULL));
-  	char *clientId;
-  	clientId = (char *) malloc(4);
+  	int clientId = 0;
   	int i = 0;
   	while(i<4){
-  		clientId[i] = (char)(rand() % 10 + 64);
+  		clientId = clientId * pow(10, i) + (char)(rand() % 10 + 1);
   		i++;
   	}
+  	printf("REAL CLIENTID%d\n", clientId);
   	return clientId;
 }
 
-char *getPacketHeader(char *clientId, int seqNo, int totalPackets, char *fileName, char *cmd) {
-	char header[MAXBUFSIZE];
-
-}
-
-long unsigned int getBufferContentSize(char buffer[]) {
+long unsigned int getBufferContentSize(unsigned char buffer[]) {
 	long unsigned int buffSize = 0;
 
 	while (buffer[buffSize] != '\0') {
@@ -71,9 +68,9 @@ int main (int argc, char * argv[])
 
 	int nbytes;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
-	char buffer[MAXBUFSIZE];
-	char file_buffer[FILEPACKETSIZE];
-	char *client = getClientID();
+	char buffer[FILEPACKETSIZE];
+	unsigned char file_buffer[FILEPACKETSIZE];
+	int client = getClientID();
 	struct sockaddr_in server;              //"Internet socket address structure"
 
 	if (argc < 3)
@@ -95,7 +92,7 @@ int main (int argc, char * argv[])
 	
 	//Read a file.
 	FILE *file;
-	file = fopen("foo1", "r");
+	file = fopen("foo2", "r");
 	if(file == NULL)
     {
       printf("file does not exist\n");
@@ -111,7 +108,9 @@ int main (int argc, char * argv[])
 
   	while (count < totalPackets) {
 
-	  	int byte_read = fread(file_buffer, 1, FILEPACKETSIZE, file);
+
+  		printf("------------------------------------------------------------------------\n");
+	  	int byte_read = fread(file_buffer, sizeof(unsigned char), FILEPACKETSIZE, file);
 	  	if( byte_read <= 0)
 	    {
 	      printf("unable to copy file into file_buffer\n");
@@ -119,24 +118,15 @@ int main (int argc, char * argv[])
 	    }
 
 	    struct packet pack;
-	    //struct packet *pac = (struct packet*) malloc(sizeof(struct packet));
+	    pack.clientId = client;
+		pack.dataSize = byte_read;//getBufferContentSize(file_buffer)-1;
 
-	    printf("Packet created\n");
-	    //printf("ClientId: %s  %s\n", client, pack.clientId);
-	    
-	    for (int i =0; i< 4;i++) {
-	    	pack.clientId[i] = client[i];
-	    }
-	    
-	    printf("clientid written: %s\n", pack.clientId);
-	    strcpy(pack.data, file_buffer);
-	    printf("data written\n");
-	    //memcpy(&pac->data, file_buffer, sizeof(file_buffer));
+	    memcpy(pack.data, file_buffer, sizeof(file_buffer));
 
-	  	//strcpy(buffer, client);     
-	  	//strcat(buffer, file_buffer);
-	  	printf("Buffer Content:%lu\n", getBufferContentSize(file_buffer));
-	  	printf("BUFFER: \n:%s:\n\n", pack.data);
+	    printf("CLIENT ID:%d**%d:\n\n", client, pack.clientId);
+	    printf("DATA SIZE:%d:\n", pack.dataSize);
+	  	printf("Buffer Content:%d  %lu   %lu  %lu\n", byte_read, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(pack.data));
+	  	printf("BUFFER:%s:\n\n", pack.data);
 
 	    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 
@@ -145,14 +135,14 @@ int main (int argc, char * argv[])
 		}
 
 	  	bzero(file_buffer,sizeof(file_buffer));
-	  	bzero(buffer,sizeof(buffer));
 	    //Read a file ends
 	
 		unsigned int server_length = sizeof(server);
 		nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
 
-		printf("Server says %s\n", buffer);
+		//printf("Server says %s\n", buffer);
 		count++;
+		printf("------------------------------------------------------------------------\n\n");
 	}	
 	close(sock);
 

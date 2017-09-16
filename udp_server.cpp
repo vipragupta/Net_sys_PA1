@@ -15,76 +15,24 @@
 /* You will have to modify the program below */
 
 #define MAXBUFSIZE 2000
-#define FILEPACKETSIZE 510		//1048576 bytes or 10 MB
+#define FILEPACKETSIZE 500		//1048576 bytes or 10 MB
 
 struct packet
 {
-	char clientId[4];
-	char data[FILEPACKETSIZE];
+	int clientId;
+	unsigned char data[FILEPACKETSIZE];
+	int dataSize;
 };
 
-long unsigned int getBufferContentSize(char buffer[]) {
+long unsigned int getBufferContentSize(unsigned char buffer[]) {
 	long unsigned int buffSize = 0;
 
 	while (buffer[buffSize] != '\0') {
+		//printf(":%c:", buffer[buffSize]);
 		buffSize++;
 	}
-
-	return buffSize+1;
-}
-
-long unsigned int getStartingIndex(char buffer[], int val) {
-	long unsigned int buffSize = 0;
-	int count = 0;
-	int flag = 0;
-
-	while (buffer[buffSize] != '\0') {
-		//printf("BUFFER CONTENT:  %c\n", buffer[buffSize]);
-	    if (buffer[buffSize] == '#') {
-	    	count++;
-	    	if (count == val) {
-	    		flag = 1;
-	    		break;
-	    	}
-	    }
-	    buffSize++;
-	}
-	//printf("FLAG: %d\n", flag);
-	//printf("RETURNING: %lu\n", buffSize);
-
-	if (flag == 1) {
-		return buffSize;
-	} else {
-		return -1;
-	}
-}
-
-char *getClientId(char buffer[]) {
-	long unsigned int buffSize = getStartingIndex(buffer, 1);
-	char *clientId = (char *) malloc(sizeof(char) * buffSize);
-  	int i=0;
-	for (; i < buffSize; i++) {
-		clientId[i] = buffer[i];
-	}
-	clientId[i] = '\0';
-	return clientId;
-}
-
-char *getFileContent(char buffer[]) {
-	long unsigned int buffSize = getStartingIndex(buffer, 6);
-
-	char *file_buffer = (char *) malloc(FILEPACKETSIZE+1);
-	file_buffer[0] = '\0';
-  	buffSize++;
-  	int i=0;
-  	//printf("^^^Initial FILEBUFFER\n%s\n\n", file_buffer);
-	if (buffSize != -1) {	
-		while (buffer[buffSize] != '\0') {
-			file_buffer[i++] = buffer[buffSize++];
-		}
-	}
-	file_buffer[i] = '\0';
-	return file_buffer;
+	printf("\n%lu    \n\n", buffSize);
+	return buffSize;
 }
 
 
@@ -128,9 +76,9 @@ int main (int argc, char * argv[] )
 	int fileSize = fwrite(test , 1, sizeof(test), file);
 	fclose(file);
 	*/
-	
+
 	while (1) {
-		printf("DATA RECEIVED\n");
+		printf("------------------------------------------------------------------------\n");
 		//File receive
  		
  		bzero(buffer,sizeof(buffer));
@@ -141,16 +89,19 @@ int main (int argc, char * argv[] )
 	    	printf("error in recieving the file\n");
 	    	continue;
 	    }
-	    //printf("CClientId:%s:\n\n", pac.clientId);
 	    
-	    file = fopen("foo_test","ab");
+	    file = fopen("foo22_test","ab");
 	   
-	    char *clientId = pac.clientId;				//getClientId(buffer);
-	    char *file_buffer = pac.data;				//getFileContent(buffer);
-	    printf("data:%s:\n", file_buffer);
-	    int fileSize = fwrite(file_buffer , 1, getBufferContentSize(file_buffer), file);
+	    int clientId = pac.clientId;						//getClientId(buffer);
+	    unsigned char *file_buffer = pac.data;				//getFileContent(buffer);
 
-	    printf("Size of File received:%d  %lu\n", fileSize, getBufferContentSize(file_buffer));
+	    memcpy(file_buffer, pac.data, pac.dataSize);
+	    int fileSize = fwrite(file_buffer , sizeof(unsigned char), pac.dataSize, file);
+
+	    printf("CLIENT ID:%d:\n", pac.clientId);
+	    printf("DATA SIZE:%d:\n", pac.dataSize);
+	  	printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(pac.data));
+	  	printf("BUFFER:%s:\n\n", pac.data);
 
 	    if( fileSize < 0)
 	    {
@@ -163,7 +114,7 @@ int main (int argc, char * argv[] )
 			printf("Error in sendto\n");
 		}
 		fclose(file);
-	
+		printf("------------------------------------------------------------------------\n\n");
 	}
 	close(sock);
 }
