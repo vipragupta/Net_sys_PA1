@@ -22,6 +22,7 @@
 struct packet
 {
 	int clientId;
+	char filename[100];
 	unsigned char data[FILEPACKETSIZE];
 	int dataSize;
 };
@@ -73,9 +74,9 @@ int main (int argc, char * argv[])
 	int client = getClientID();
 	struct sockaddr_in server;              //"Internet socket address structure"
 
-	if (argc < 3)
+	if (argc < 4)
 	{
-		printf("USAGE:  <server_ip> <server_port>\n");
+		printf("USAGE:  <server_ip> <server_port> <filename>\n");
 		exit(1);
 	}
 
@@ -92,7 +93,9 @@ int main (int argc, char * argv[])
 	
 	//Read a file.
 	FILE *file;
-	file = fopen("foo2", "r");
+	file = fopen(argv[3], "r");
+	//file = fopen("foo2", "r");
+	
 	if(file == NULL)
     {
       printf("file does not exist\n");
@@ -107,8 +110,6 @@ int main (int argc, char * argv[])
   	int totalPackets = getTotalNumberOfPackets(file_size);
 
   	while (count < totalPackets) {
-
-
   		printf("------------------------------------------------------------------------\n");
 	  	int byte_read = fread(file_buffer, sizeof(unsigned char), FILEPACKETSIZE, file);
 	  	if( byte_read <= 0)
@@ -119,6 +120,8 @@ int main (int argc, char * argv[])
 
 	    struct packet pack;
 	    pack.clientId = client;
+	    memset(pack.filename, '\0', sizeof(pack.filename));
+	    strcpy(pack.filename,argv[3]);
 		pack.dataSize = byte_read;//getBufferContentSize(file_buffer)-1;
 
 	    memcpy(pack.data, file_buffer, sizeof(file_buffer));

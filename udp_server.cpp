@@ -20,6 +20,7 @@
 struct packet
 {
 	int clientId;
+	char filename[100];
 	unsigned char data[FILEPACKETSIZE];
 	int dataSize;
 };
@@ -89,8 +90,15 @@ int main (int argc, char * argv[] )
 	    	printf("error in recieving the file\n");
 	    	continue;
 	    }
-	    
-	    file = fopen("foo22_test","ab");
+
+	    char filename[100];
+	    //memset(filename, '\0', sizeof(pac.filename));
+	    strcpy(filename, "./serverDir/");
+	    strcat(filename, pac.filename);
+	    strcat(filename, "_new");
+
+	    printf("FILENAME: %s   %s\n", filename, pac.filename);
+	    file = fopen(filename,"ab");
 	   
 	    int clientId = pac.clientId;						//getClientId(buffer);
 	    unsigned char *file_buffer = pac.data;				//getFileContent(buffer);
