@@ -130,6 +130,15 @@ int main (int argc, char * argv[] )
 	    if (strcmp(client_pack.command,"put") == 0) {
 	    	int packetExpected = 0;
 	    	int flag = 0;
+	    	int waitCount = 0;
+
+	    	tv.tv_sec = 0;
+			tv.tv_usec = 400000;
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout");
+			}
+
 	    	while (1) {
 	    		if (packetExpected == client_pack.seqNo) {
 				    char filename[100];
@@ -172,12 +181,17 @@ int main (int argc, char * argv[] )
 				if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&remote, &remote_length)<0)
 	    		{
 	    			printf("error in recieving the file\n");
+	    			waitCount++;
+	    			if (waitCount > 20) {
+	    				printf("Client Not sending packets. Moving on...\n");
+	    				break;
+	    			}
 	    			continue;
 	    		}
 	    		if (client_pack.seqNo == (client_pack.totalPackets - 1)) {
 	    			nbytes = sendto(sock, "Packet Received", 17, 0, (struct sockaddr *)&remote, remote_length);
 					if (nbytes < 0){
-							printf("Error in sendto\n");
+						printf("Error in sendto\n");
 					}
 					break;
 				}
@@ -349,6 +363,56 @@ int main (int argc, char * argv[] )
 			}
 		} else if (strcmp(client_pack.command, "del") == 0) {
 
+			struct packet pack;
+			pack.clientId = client_pack.clientId;
+			int fileNumber = 0;
+
+			char filename[100];
+		    //memset(filename, '\0', sizeof(pac.filename));
+		    strcpy(filename, "./serverDir/");
+		    strcat(filename, client_pack.filename);
+
+		    FILE *file = fopen(filename,"rb");
+		    if (file) {
+		    	fclose(file);
+		    	if (remove(filename) == 0) {
+			      printf("Deleted successfully");
+			      strcpy((char *) pack.data, "Deleted successfully");
+		    	}
+			   else {
+			      printf("Unable to delete the file");
+			      strcpy((char *) pack.data, "Unable to delete the file");
+			   }
+		    } else {
+		    	printf("File Doesn't exist");
+			    strcpy((char *) pack.data, "File Doesn't exist");
+		    }
+			
+			pack.dataSize = fileNumber;
+			pack.totalPackets = 1;
+			pack.seqNo = 1;
+			memset(pack.command, '\0', sizeof(pack.command));
+			strcpy(pack.command, "del");
+			int resend_count = 0;
+
+			RESEND_DEL:
+				nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
+
+			    if (nbytes < 0) {
+					printf("\nError in sendto\n");
+				}
+				
+				nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &remote_length);  
+				if (nbytes > 0) {
+					printf("\n\nClient Says: %s\n", buffer);
+				} else {
+					if (resend_count < 5) {
+						resend_count++;
+						goto RESEND_DEL;
+					} else {
+						printf("Resent 5 times, still client didn't acknowledge. Please try again later.\n");
+					}
+				}
 		} else if (strcmp(client_pack.command, "exit") == 0) {
 			nbytes = sendto(sock, "Bye!", 6, 0, (struct sockaddr *)&remote, remote_length);
 			if (nbytes < 0){

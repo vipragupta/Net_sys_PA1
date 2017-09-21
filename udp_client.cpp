@@ -128,38 +128,36 @@ int main (int argc, char * argv[])
 		printf("\n\n-------------------MENU---------------------------\n");
 		printf(". put [FileName]\n. get [FileName]\n. del [FileName]\n. ls\n. exit\n\n");
 		printf("Enter the operation you want to perform: ");
+		
 		fgets(option, sizeof(option), stdin);
 		options = strtok(option, "\n");
 		printf("--------------------------------------\n");
-		printf("You selected: %s\n\n", option);
+		printf("You selected:%s:\n\n", option);
 
 		char *optionCmd;
 		char *filename;
-		
 		optionCmd = strtok(options, " ");
-
+		
 		if (optionCmd && optionCmd != NULL) {
 			if (strcmp(optionCmd, "get") == 0 || strcmp(optionCmd, "put") == 0 || strcmp(optionCmd, "del") == 0 ) {
-				if (optionCmd != NULL ) {
-					filename = strtok(NULL, "");
-					if (!filename) {
-						printf("No File Name Entered. Please try again.\n");
-						continue;
-					}
+				filename = strtok(NULL, "");
+				if (!filename) {
+					printf("No File Name Entered. Please try again.\n");
+					continue;
 				}
 			}
 		} else {
 			continue;
 		}
 		
-
 		if (strcmp(optionCmd, "put") == 0) {
 			FILE *file;
 			char filePath[50];
 		    memset(filePath, '\0', sizeof(filePath));
 			strcat(filePath, "./clientDir/");
 			strcat(filePath, filename)	;
-			file = getFilePointer(filePath);
+			printf("filePath: %s\n", filePath);
+			file = fopen(filePath, "rb");
 			if(file == NULL)
 		    {
 		      printf("Given File Name does not exist\n");
@@ -271,7 +269,7 @@ int main (int argc, char * argv[])
 			    }
 			    
 			    if (client_pack.dataSize == -1) {
-			    	printf("Given File Name does not exist\n");
+			    	printf("Server Says: Given File Name does not exist\n");
 			    	break;
 			    }
 			    if (packetExpected == client_pack.seqNo) {
@@ -328,6 +326,38 @@ int main (int argc, char * argv[])
 			}
 
 		} else if (strcmp(optionCmd, "del") == 0) {
+			printf("Inside Del\n");
+			struct packet pack;
+		    pack.clientId = client;
+		    
+		    memset(pack.filename, '\0', sizeof(pack.filename));
+		    strcpy(pack.filename, filename);
+
+			pack.seqNo = 0;
+			memset(pack.command, '\0', sizeof(pack.command));
+		    strcpy(pack.command, "del");
+
+		    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
+		    if (nbytes < 0){
+				printf("Error in sendto\n");
+			}
+
+		  	struct packet client_pack;
+		  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
+		    {
+		    	printf("No Data Received\n");
+		    	continue;
+		    }
+		    if (client_pack.dataSize == -1) {
+				printf("Some error occured at server side.\n");
+			} else {
+				nbytes = sendto(sock, "Packet Received", 17, 0, (struct sockaddr *)&server, sizeof(server));
+			    if (nbytes < 0){
+					printf("Error in sendto\n");
+				}
+			    printf("Server Says: %s\n", client_pack.data);
+	
+			}
 		} else if (strcmp(optionCmd, "ls") == 0 ) {
 			printf("\n");
 			struct packet pack;
