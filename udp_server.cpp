@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
+#include <dirent.h>
 /* You will have to modify the program below */
 
 #define MAXBUFSIZE 2000
@@ -190,6 +191,7 @@ int main (int argc, char * argv[] )
 			}
 
 		} else if (strcmp(client_pack.command,"get") == 0) {
+
 			FILE *file;
 			char filename[50];
 			memset(filename, '\0', sizeof(filename));
@@ -219,6 +221,13 @@ int main (int argc, char * argv[] )
 		  	int count = 0;
 		  	int totalPackets = getTotalNumberOfPackets(file_size);
 		  	printf("totalPackets: %d\n", totalPackets);
+
+		  	tv.tv_sec = 0;
+			tv.tv_usec = 100000;
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout");
+			}
 
 		  	while (count < totalPackets) {
 		  		printf("------------------------------------------------------------------------\n");
@@ -254,16 +263,25 @@ int main (int argc, char * argv[] )
 			  	printf("Buffer Content:%d  %lu   %lu  %lu\n", byte_read, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(pack.data));
 			  	printf("BUFFER:%s:\n\n", pack.data);
 
-			    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
+			  	int resend_count =0;
+			  	RESEND_GET:
+				    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
 
-			    if (nbytes < 0){
-					printf("Error in sendto\n");
-				}
-				printf("Waiting for client ack\n");
-				nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &remote_length);  
-				if (nbytes > 0) {
-					printf("Client Says: %s\n", buffer);
-				}
+				    if (nbytes < 0){
+						printf("Error in sendto\n");
+					}
+					printf("Waiting for client ack\n");
+					nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &remote_length);  
+					if (nbytes > 0) {
+						printf("Client Says: %s\n", buffer);
+					} else {
+						if (count < 5) {
+							goto RESEND_GET;
+							resend_count++;
+						} else {
+							printf("Resent 5 times, still client didn't acknowledge. Moving on...\n");
+						}
+					}
 
 				count++;
 			}
@@ -279,6 +297,66 @@ int main (int argc, char * argv[] )
 			}
 		} else if (strcmp(client_pack.command, "ls") == 0) {
 
+			printf("Inside LS\n");
+			DIR *dir;
+			struct dirent *ent;
+			struct packet pack;
+			pack.clientId = client_pack.clientId;
+			int fileNumber = 0;
+
+			if ((dir = opendir ("./serverDir/")) != NULL) {
+			    while ((ent = readdir (dir)) != NULL) {
+			    	printf("%s\t", ent->d_name);
+
+			    	if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0 ) {
+				    	if (fileNumber == 0) {
+				    		strcpy((char *) pack.data, ent->d_name);
+				    	} else {
+				    		strcat((char *) pack.data, ent->d_name);
+				    	}
+				    	strcat((char *)pack.data, "#");
+
+						fileNumber++;
+					}
+				}
+				printf("\n%s\n", pack.data);
+				closedir (dir);
+				pack.dataSize = fileNumber;
+				pack.totalPackets = 1;
+				pack.seqNo = 1;
+				memset(pack.command, '\0', sizeof(pack.command));
+				strcpy(pack.command, "ls");
+				int resend_count = 0;
+
+				RESEND_LS:
+					nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
+
+				    if (nbytes < 0) {
+						printf("\nError in sendto\n");
+					}
+					
+					nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &remote_length);  
+					if (nbytes > 0) {
+						printf("\nClient Says: %s\n", buffer);
+					} else {
+						if (resend_count < 5) {
+							resend_count++;
+							goto RESEND_LS;
+						} else {
+							printf("Resent 5 times, still client didn't acknowledge. Moving on...\n");
+						}
+					}
+
+			} else {
+			    printf("Error while Opening Server Directory\n");
+		      	struct packet pack;
+			    pack.dataSize = -1;
+			    strcpy((char *)pack.data, "Error while Opening Server Directory");
+		      	nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
+				if (nbytes < 0){
+					printf("Error in sendto\n");
+				}
+			}
 		} else if (strcmp(client_pack.command, "del") == 0) {
 
 		} else if (strcmp(client_pack.command, "exit") == 0) {

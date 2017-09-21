@@ -121,10 +121,10 @@ int main (int argc, char * argv[])
 	}
 
 	while (1) {
-		char option[1];
+		char option[100];
 		char filename[50];
 		bzero(option,sizeof(option));
-		printf("\n\n********Menu********\n1. put\n2. get\n3. del\n4. ls\n5. exit\n");
+		printf("\n\n\n********Menu********\n1. put\n2. get\n3. del\n4. ls\n5. exit\n\n");
 		printf("Enter the operation you want to perform: ");
 		scanf("%s", option);
 
@@ -281,8 +281,51 @@ int main (int argc, char * argv[])
 				}
 			}
 		} else if (option[0] == '3') {
+			
 
 		} else if (option[0] == '4') {
+			printf("\n");
+			struct packet pack;
+		    pack.clientId = client;
+
+			pack.seqNo = 0;
+			memset(pack.command, '\0', sizeof(pack.command));
+		    strcpy(pack.command, "ls");
+
+		    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
+		    if (nbytes < 0){
+				printf("Error in sendto\n");
+			}
+
+		  	bzero(file_buffer,sizeof(file_buffer));
+		  	struct packet client_pack;
+		  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
+		    {
+		    	printf("error in recieving the file\n");
+		    	continue;
+		    }
+		    if (client_pack.dataSize == -1) {
+				printf("Some error occured at server side.\n");
+			} else {
+
+				nbytes = sendto(sock, "Packet Received", 17, 0, (struct sockaddr *)&server, sizeof(server));
+			    if (nbytes < 0){
+					printf("Error in sendto\n");
+				}
+
+				char *token;
+				int tcount = 0;
+    			token = strtok((char *)client_pack.data, "#");
+    			while( token != NULL ) 
+			    {
+			    	printf("%s  \t", token);
+			      	token = strtok(NULL, "#");
+			      	tcount++;
+			      	if (tcount % 5 == 0) {
+			      		printf("\n");
+			      	}
+			    }
+			}
 
 		} else if (option[0] == '5') {
 			struct packet pack;
