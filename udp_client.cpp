@@ -42,7 +42,7 @@ int getTotalNumberOfPackets(size_t file_size) {
   	if (file_size % FILEPACKETSIZE > 0) {
   		packets++;
   	}
-  	return packets -1;
+  	return packets;
 }
 
 int getClientID() {
@@ -73,10 +73,10 @@ FILE *getFilePointer(char filename[])
    	memset(filePath, '\0', sizeof(filePath));
     strcat(filePath, "./clientDir/");
     strcat(filePath, filename)	;
-
+    //printf("filePath:%s:\n", filePath);
     file = fopen(filePath, "rb");
     if (file) {
-        printf("File %s opened \n\n", filePath);
+        //printf("File %s opened \n\n", filePath);
         return file;
     }
     return NULL; // error
@@ -122,45 +122,65 @@ int main (int argc, char * argv[])
 
 	while (1) {
 		char option[100];
-		char filename[50];
-		bzero(option,sizeof(option));
-		printf("\n\n\n********Menu********\n1. put\n2. get\n3. del\n4. ls\n5. exit\n\n");
+		char *options;
+
+		bzero(option, sizeof(option));
+		printf("\n\n-------------------MENU---------------------------\n");
+		printf(". put [FileName]\n. get [FileName]\n. del [FileName]\n. ls\n. exit\n\n");
 		printf("Enter the operation you want to perform: ");
-		scanf("%s", option);
+		fgets(option, sizeof(option), stdin);
+		options = strtok(option, "\n");
+		printf("--------------------------------------\n");
+		printf("You selected: %s\n\n", option);
 
-		printf("You selected: %s\n", option);
+		char *optionCmd;
+		char *filename;
+		
+		optionCmd = strtok(options, " ");
 
-		if (option[0] == '1') {
+		if (optionCmd && optionCmd != NULL) {
+			if (strcmp(optionCmd, "get") == 0 || strcmp(optionCmd, "put") == 0 || strcmp(optionCmd, "del") == 0 ) {
+				if (optionCmd != NULL ) {
+					filename = strtok(NULL, "");
+					if (!filename) {
+						printf("No File Name Entered. Please try again.\n");
+						continue;
+					}
+				}
+			}
+		} else {
+			continue;
+		}
+		
 
-			printf("Enter the file Name: ");
-			scanf("%s", filename);
-			//Read a file.
+		if (strcmp(optionCmd, "put") == 0) {
 			FILE *file;
-			file = getFilePointer(filename);
-			
+			char filePath[50];
+		    memset(filePath, '\0', sizeof(filePath));
+			strcat(filePath, "./clientDir/");
+			strcat(filePath, filename)	;
+			file = getFilePointer(filePath);
 			if(file == NULL)
 		    {
 		      printf("Given File Name does not exist\n");
 		      continue;
 		    }
 
-		    printf("Getting file Size\n");
 		  	size_t file_size = getFileSize(file); 		//Tells the file size in bytes.
-		  	printf("file Size: %lu\n", file_size);
 		  	fseek(file, 0, SEEK_SET);
 
 		  	int count = 0;
 		  	int totalPackets = getTotalNumberOfPackets(file_size);
-		  	printf("totalPackets: %d\n", totalPackets);
+		  	//system("clear");
+		  	printf("Total Packets: %d\n", totalPackets);
 
 		  	while (count < totalPackets) {
 		  		int retry = 0;
-		  		printf("------------------------------------------------------------------------\n");
+		  		printf("--------------------------------------\n");
 		  		
 		  		bzero(file_buffer,sizeof(file_buffer));
 		  		bzero(buffer,sizeof(buffer));
 			  	int byte_read = fread(file_buffer, sizeof(unsigned char), FILEPACKETSIZE, file);		  	
-			  	printf("Finally: %d   %d  %d\n", count, totalPackets, byte_read);
 			  	if( byte_read <= 0)
 			    {
 			      printf("unable to copy file into file_buffer\n");
@@ -178,34 +198,38 @@ int main (int argc, char * argv[])
 			    strcpy(pack.command, "put");
 			    memcpy(pack.data, file_buffer, sizeof(file_buffer));
 
-			    printf("DATA SIZE:%d:\n", pack.dataSize);
-			  	printf("BUFFER:%s:\n\n", pack.data);
-
 			  	RESEND:
+			  		printf("\nPacket Sent: %s  %d\n", pack.filename, count);
 				    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 
 				    if (nbytes < 0){
 						printf("Error in sendto\n");
 					}
-
+					printf("Waiting for server ack\n");
 					nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
 					if (nbytes > 0) {
 						printf("Server Says: %s\n", buffer);
 					} else {
-						printf("Timer timeout, Resending packet %d\n", count);
-						if (retry < 3) {
+						if (retry < 5) {
+							printf("Timer timeout, Resending packet %d\n", count);
 							retry++;
 							goto RESEND;
+						} else {
+							printf("Resent %d Packet 5 times, Server Not responding. Please try after some time.\n ", count);
+							break;
 						}
 					}
 				count++;
 			}
-			printf("Finally::: %d   %d\n", count, totalPackets);
-		} else if (option[0] == '2') {
-			char filename[100];
-		    printf("Enter the file Name: ");
-			scanf("%s", filename);
+			if (count == 0) {
+				printf("Total Packets sent: %d\n", count);
+			} else {
+				printf("Total Packets sent: %d\n", count - 1 );
+			}
+		} else if (strcmp(optionCmd, "get") == 0) {
 		    printf("\n");
+		    system("clear");
+		    printf("--------------------------------------\n");
 		    struct packet pack;
 		    pack.clientId = client;
 		    memset(pack.filename, '\0', sizeof(pack.filename));
@@ -215,6 +239,7 @@ int main (int argc, char * argv[])
 			memset(pack.command, '\0', sizeof(pack.command));
 		    strcpy(pack.command, "get");
 
+		    printf("FileName Sent to server.\n");
 		    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 		    printf("\n");
 		    if (nbytes < 0){
@@ -223,11 +248,25 @@ int main (int argc, char * argv[])
 
 		  	bzero(file_buffer,sizeof(file_buffer));
 		  	int packetExpected = 0;
+		  	int waitTime = 0;
+
+		  	tv.tv_sec = 0;
+			tv.tv_usec = 100000;		//100ms
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout\n");
+			}
+			printf("Waiting for first Packet...\n");
 		  	while (1) {
 			  	struct packet client_pack;
 			  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
 			    {
-			    	printf("error in recieving the file\n");
+			    	printf("No Data Received\n");
+			    	waitTime++;
+			    	if (waitTime > 10) {
+			    		printf("Server not responding. Please try again after sometime.\n");
+			    		break;
+			    	}
 			    	continue;
 			    }
 			    
@@ -236,7 +275,8 @@ int main (int argc, char * argv[])
 			    	break;
 			    }
 			    if (packetExpected == client_pack.seqNo) {
-				    printf("Received something from server\n");
+				    printf("Received Packet: %s  %d\n", client_pack.filename, client_pack.seqNo);
+
 				    FILE *file;
 				    char filePath[50];
 				    memset(filePath, '\0', sizeof(filePath));
@@ -254,10 +294,10 @@ int main (int argc, char * argv[])
 				    memcpy(file_buffer, client_pack.data, client_pack.dataSize);
 				    int fileSize = fwrite(file_buffer , sizeof(unsigned char), client_pack.dataSize, file);
 
-				    printf("CLIENT ID:%d:\n", client_pack.clientId);
-				    printf("DATA SIZE:%d:\n", client_pack.dataSize);
-				  	printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(client_pack.data));
-				  	printf("BUFFER:%s:\n\n", client_pack.data);
+				   //  printf("CLIENT ID:%d:\n", client_pack.clientId);
+				   //  printf("DATA SIZE:%d:\n", client_pack.dataSize);
+				  	// printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(client_pack.data));
+				  	// printf("BUFFER:%s:\n\n", client_pack.data);
 
 				    if( fileSize < 0)
 				    {
@@ -278,12 +318,17 @@ int main (int argc, char * argv[])
 						break;
 					}
 					packetExpected++;
+				} else {
+					waitTime++;
+				}
+				if (waitTime > 5) {
+					printf("Server not sending the Packet Expected. Please try again.\n");
+					break;
 				}
 			}
-		} else if (option[0] == '3') {
-			
 
-		} else if (option[0] == '4') {
+		} else if (strcmp(optionCmd, "del") == 0) {
+		} else if (strcmp(optionCmd, "ls") == 0 ) {
 			printf("\n");
 			struct packet pack;
 		    pack.clientId = client;
@@ -301,7 +346,7 @@ int main (int argc, char * argv[])
 		  	struct packet client_pack;
 		  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
 		    {
-		    	printf("error in recieving the file\n");
+		    	printf("No Data Received\n");
 		    	continue;
 		    }
 		    if (client_pack.dataSize == -1) {
@@ -326,8 +371,7 @@ int main (int argc, char * argv[])
 			      	}
 			    }
 			}
-
-		} else if (option[0] == '5') {
+		} else if (strcmp(optionCmd, "exit") == 0) {
 			struct packet pack;
 		    memset(pack.command, '\0', sizeof(pack.command));
 		    strcpy(pack.command, "exit");
@@ -340,10 +384,9 @@ int main (int argc, char * argv[])
 			printf("Good Bye!\n");
 			return 0;
 		} else {
-			printf("The option you selected is invalid.\n");
+			printf("Invalid Command.\n");
 			continue;
 		}
-	
 	}
 	close(sock);
 }
