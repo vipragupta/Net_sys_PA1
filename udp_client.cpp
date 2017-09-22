@@ -1,3 +1,5 @@
+//g++ -std=c++11 udp_client.cpp -o client -lcrypto -lssl
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -13,6 +15,7 @@
 #include <errno.h>
 #include <time.h>
 #include <math.h>
+#include <openssl/md5.h>
 
 #define MAXBUFSIZE 1048576		//1048576 bytes or 10 MB
 #define FILEPACKETSIZE 500			// 10kB
@@ -28,6 +31,7 @@ struct packet
 	int totalPackets;
 	int seqNo;
 	int dataSize;
+	char mdHash[FILEPACKETSIZE];
 };
 
 size_t getFileSize(FILE *file) {
@@ -38,7 +42,8 @@ size_t getFileSize(FILE *file) {
 
 int getTotalNumberOfPackets(size_t file_size) {
 
-	int packets = file_size/FILEPACKETSIZE;
+	int packets = 0;
+	packets = file_size/FILEPACKETSIZE;
   	if (file_size % FILEPACKETSIZE > 0) {
   		packets++;
   	}
@@ -151,6 +156,13 @@ int main (int argc, char * argv[])
 		}
 		
 		if (strcmp(optionCmd, "put") == 0) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 400000;		//400ms
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout\n");
+			}
+
 			FILE *file;
 			char filePath[50];
 		    memset(filePath, '\0', sizeof(filePath));
@@ -184,7 +196,7 @@ int main (int argc, char * argv[])
 			      printf("unable to copy file into file_buffer\n");
 			      exit(1);
 			    }
-
+			    
 			    struct packet pack;
 			    pack.clientId = client;
 			    memset(pack.filename, '\0', sizeof(pack.filename));
@@ -195,15 +207,33 @@ int main (int argc, char * argv[])
 				memset(pack.command, '\0', sizeof(pack.command));
 			    strcpy(pack.command, "put");
 			    memcpy(pack.data, file_buffer, sizeof(file_buffer));
+			    //memcpy(pack.data, "vipragupta", sizeof("vipragupta"));
+
+			    // unsigned char digest[16];
+			    // MD5_CTX ctx;
+			    // MD5_Init(&ctx);
+			    // MD5_Update(&ctx, file_buffer, strlen((char *)file_buffer));
+			    // //MD5_Update(&ctx, "vipragupta", strlen((char *)"vipragupta"));
+			    // MD5_Final(digest, &ctx);
+			 
+			    // char mdString[33];
+			    // for (int i = 0; i < 16; i++)
+			    //     sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
+			 
+			    // printf("md5 digest: %s\n", mdString);
+
+			    // strcpy(pack.mdHash, mdString);//, sizeof(mdString));
+
 
 			  	RESEND:
-			  		printf("\nPacket Sent: %s  %d\n", pack.filename, count);
+			  		printf("Packet: %d     bytes_read: %d\n", count, byte_read);
+			  		//printf("BUFFER: %s:\n\n", pack.data);
 				    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 
 				    if (nbytes < 0){
 						printf("Error in sendto\n");
 					}
-					printf("Waiting for server ack\n");
+					printf("Waiting for server ack..\n");
 					nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
 					if (nbytes > 0) {
 						printf("Server Says: %s\n", buffer);
@@ -220,9 +250,9 @@ int main (int argc, char * argv[])
 				count++;
 			}
 			if (count == 0) {
-				printf("Total Packets sent: %d\n", count);
+				printf("\nTotal Packets sent: %d\n", count);
 			} else {
-				printf("Total Packets sent: %d\n", count - 1 );
+				printf("\nTotal Packets sent: %d\n", count - 1 );
 			}
 		} else if (strcmp(optionCmd, "get") == 0) {
 		    printf("\n");
@@ -249,7 +279,7 @@ int main (int argc, char * argv[])
 		  	int waitTime = 0;
 
 		  	tv.tv_sec = 0;
-			tv.tv_usec = 100000;		//100ms
+			tv.tv_usec = 400000;		//400ms
 
 		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
 	    		printf("Error Socket timeout\n");
@@ -291,11 +321,11 @@ int main (int argc, char * argv[])
 
 				    memcpy(file_buffer, client_pack.data, client_pack.dataSize);
 				    int fileSize = fwrite(file_buffer , sizeof(unsigned char), client_pack.dataSize, file);
-
+				    printf("packetExpected: %d   PacketRec: %d     bytes_wrote: %d   client_data_size: %d\n", packetExpected, client_pack.seqNo, fileSize, client_pack.dataSize);
 				   //  printf("CLIENT ID:%d:\n", client_pack.clientId);
 				   //  printf("DATA SIZE:%d:\n", client_pack.dataSize);
 				  	// printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(client_pack.data));
-				  	// printf("BUFFER:%s:\n\n", client_pack.data);
+				  	 printf("BUFFER:%s:\n\n", client_pack.data);
 
 				    if( fileSize < 0)
 				    {
@@ -414,8 +444,21 @@ int main (int argc, char * argv[])
 			printf("Good Bye!\n");
 			return 0;
 		} else {
-			printf("Invalid Command.\n");
-			continue;
+			struct packet pack;
+		    memset(pack.command, '\0', sizeof(pack.command));
+		    strcpy(pack.command, optionCmd);
+	      	
+	      	nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
+
+			if (nbytes < 0){
+				printf("Error in sendto\n");
+			}
+			struct packet client_pack;
+			if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
+		    {
+		    	printf("No Data Received\n");
+		    }
+			printf("Server Says: %s     %s.\n", client_pack.data, client_pack.command);
 		}
 	}
 	close(sock);
