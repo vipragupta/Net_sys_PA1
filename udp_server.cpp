@@ -19,7 +19,7 @@
 /* You will have to modify the program below */
 
 #define MAXBUFSIZE 2000
-#define FILEPACKETSIZE 500		//1048576 bytes or 10 MB
+#define FILEPACKETSIZE 5*1024		//1048576 bytes or 10 MB
 
 struct packet
 {
