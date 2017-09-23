@@ -219,7 +219,7 @@ int main (int argc, char * argv[] )
 	    			waitCount++;
 	    			if (waitCount > 20) {
 	    				printf("Client Not sending packets. Moving on...\n");
-	    				remove(client_pack.filename);
+	    				//remove(client_pack.filename);
 	    				break;
 	    			}
 	    			flagMD = 0;
@@ -229,7 +229,7 @@ int main (int argc, char * argv[] )
 	    			flagPacketProcessed = 0;
 	    		}
 			}
-			printf("Total Packets Received: %d\n", packetExpected);
+			printf("Total Packets Received: %d\n", packetExpected-1);
 
 		} else if (strcmp(client_pack.command,"get") == 0) {
 

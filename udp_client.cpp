@@ -18,7 +18,7 @@
 #include <openssl/md5.h>
 
 #define MAXBUFSIZE 1048576		//1048576 bytes or 10 MB
-#define FILEPACKETSIZE 500			// 10kB
+#define FILEPACKETSIZE 5*1024			
 
 /* You will have to modify the program below */
 
@@ -42,11 +42,16 @@ size_t getFileSize(FILE *file) {
 
 int getTotalNumberOfPackets(size_t file_size) {
 
+	int fileSize = FILEPACKETSIZE;
 	int packets = 0;
-	packets = file_size/FILEPACKETSIZE;
-  	if (file_size % FILEPACKETSIZE > 0) {
+	packets = file_size/fileSize;
+	
+	//printf("Packets: %lu  %d\n", file_size, packets);
+  	if (file_size % fileSize > 0) {
   		packets++;
   	}
+  	
+  	//printf("Packets: %d\n", packets);
   	return packets;
 }
 
@@ -207,23 +212,6 @@ int main (int argc, char * argv[])
 				memset(pack.command, '\0', sizeof(pack.command));
 			    strcpy(pack.command, "put");
 			    memcpy(pack.data, file_buffer, sizeof(file_buffer));
-			    //memcpy(pack.data, "vipragupta", sizeof("vipragupta"));
-
-			    // unsigned char digest[16];
-			    // MD5_CTX ctx;
-			    // MD5_Init(&ctx);
-			    // MD5_Update(&ctx, file_buffer, strlen((char *)file_buffer));
-			    // //MD5_Update(&ctx, "vipragupta", strlen((char *)"vipragupta"));
-			    // MD5_Final(digest, &ctx);
-			 
-			    // char mdString[33];
-			    // for (int i = 0; i < 16; i++)
-			    //     sprintf(&mdString[i*2], "%02x", (unsigned int)digest[i]);
-			 
-			    // printf("md5 digest: %s\n", mdString);
-
-			    // strcpy(pack.mdHash, mdString);//, sizeof(mdString));
-
 
 			  	RESEND:
 			  		printf("Packet: %d     bytes_read: %d\n", count, byte_read);
