@@ -219,6 +219,7 @@ int main (int argc, char * argv[] )
 	    			waitCount++;
 	    			if (waitCount > 20) {
 	    				printf("Client Not sending packets. Moving on...\n");
+	    				remove(client_pack.filename);
 	    				break;
 	    			}
 	    			flagMD = 0;
