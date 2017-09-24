@@ -330,15 +330,15 @@ int main (int argc, char * argv[] )
 			nbytes = recvfrom(sock, &receivedPacket, sizeof(receivedPacket), 0, (struct sockaddr *)&remote, &remote_length);  
 			
 			if (nbytes > 0 && receivedPacket.seqNo == count-1 && receivedPacket.ack == 1) {
-				printf("Client Acknowledged Packet %d\n", count-1);
+				printf(":Client Acknowledged Packet %d\n", count-1);
 			} 
 
 			if (count == 0) {
-				printf("\nTotal Packets sent: %d\n", count);
+				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count, totalPackets);
 			} else {
-				printf("\nTotal Packets sent: %d\n", count - 1 );
+				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count - 1, totalPackets);
 			}
-			
+
 			tv.tv_sec = 20;
 			tv.tv_usec = 0;
 

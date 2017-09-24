@@ -240,11 +240,10 @@ int main (int argc, char * argv[])
 					}
 				count++;
 			}
-			printf("File Transfer successfully!!!\n");
 			if (count == 0) {
-				printf("\nTotal Packets sent: %d\n", count);
+				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count, totalPackets);
 			} else {
-				printf("\nTotal Packets sent: %d\n", count - 1 );
+				printf("\nTotal Packets sent: %d    totalPackets: %d \n", count - 1, totalPackets);
 			}
 		} else if (strcmp(optionCmd, "get") == 0) {
 		    printf("\n");
