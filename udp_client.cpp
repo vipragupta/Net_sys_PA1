@@ -32,6 +32,7 @@ struct packet
 	int seqNo;
 	int dataSize;
 	char mdHash[FILEPACKETSIZE];
+	int ack;
 };
 
 size_t getFileSize(FILE *file) {
@@ -215,17 +216,19 @@ int main (int argc, char * argv[])
 
 			  	RESEND:
 			  		printf("Packet: %d     bytes_read: %d\n", count, byte_read);
-			  		//printf("BUFFER: %s:\n\n", pack.data);
 				    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 
 				    if (nbytes < 0){
 						printf("Error in sendto\n");
 					}
 					printf("Waiting for server ack..\n");
-					nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&server, &server_length);  
-					if (nbytes > 0) {
-						printf("Server Says: %s\n", buffer);
+					struct packet receivedPacket;
+					nbytes = recvfrom(sock, &receivedPacket, sizeof(receivedPacket), 0, (struct sockaddr *)&server, &server_length);  
+					if (nbytes > 0 || receivedPacket.seqNo == count && receivedPacket.ack == 1) {
+						printf("Server Acknowledged Packet  %d\n", count);
 					} else {
+						//printf("nbytes:%d   receivedPacket.seqNo: %d     count: %d    receivedPacket.ack: %d\n", nbytes, receivedPacket.seqNo, count, receivedPacket.ack);
+						
 						if (retry < 5) {
 							printf("Timer timeout, Resending packet %d\n", count);
 							retry++;
@@ -267,17 +270,17 @@ int main (int argc, char * argv[])
 		  	int waitTime = 0;
 
 		  	tv.tv_sec = 0;
-			tv.tv_usec = 400000;		//400ms
+			tv.tv_usec = 50000;
 
-		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-	    		printf("Error Socket timeout\n");
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout");
 			}
 			printf("Waiting for first Packet...\n");
 		  	while (1) {
 			  	struct packet client_pack;
 			  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
 			    {
-			    	printf("No Data Received\n");
+			    	printf("Waiting for packet %d\n", packetExpected);
 			    	waitTime++;
 			    	if (waitTime > 10) {
 			    		printf("Server not responding. Please try again after sometime.\n");
@@ -310,11 +313,6 @@ int main (int argc, char * argv[])
 				    memcpy(file_buffer, client_pack.data, client_pack.dataSize);
 				    int fileSize = fwrite(file_buffer , sizeof(unsigned char), client_pack.dataSize, file);
 				    printf("Packet: %d     bytes_wrote: %d\n", packetExpected, fileSize);
-				    //printf("packetExpected: %d   PacketRec: %d     bytes_wrote: %d   client_data_size: %d\n", packetExpected, client_pack.seqNo, fileSize, client_pack.dataSize);
-				   //  printf("CLIENT ID:%d:\n", client_pack.clientId);
-				   //  printf("DATA SIZE:%d:\n", client_pack.dataSize);
-				  	// printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(client_pack.data));
-				  	// printf("BUFFER:%s:\n\n", client_pack.data);
 
 				    if( fileSize < 0)
 				    {
@@ -322,19 +320,25 @@ int main (int argc, char * argv[])
 				        exit(1);
 				    }
 
-					nbytes = sendto(sock, "Packet Received\n", 17, 0, (struct sockaddr *)&server, sizeof(server));
+				    client_pack.ack = 1;
+					nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 					if (nbytes < 0){
 						printf("Error in sendto\n");
 					}
 					fclose(file);
 					if (client_pack.seqNo == client_pack.totalPackets - 1) {
-						nbytes = sendto(sock, "Packet Received\n", 17, 0, (struct sockaddr *)&server, sizeof(server));
+						nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 						if (nbytes < 0){
 							printf("Error in sendto\n");
 						}
 						break;
 					}
 					packetExpected++;
+				} else if (packetExpected > client_pack.seqNo) {
+					nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
+					if (nbytes < 0){
+						printf("Error in sendto\n");
+					}
 				} else {
 					waitTime++;
 				}
@@ -370,7 +374,8 @@ int main (int argc, char * argv[])
 		    if (client_pack.dataSize == -1) {
 				printf("Some error occured at server side.\n");
 			} else {
-				nbytes = sendto(sock, "Packet Received", 17, 0, (struct sockaddr *)&server, sizeof(server));
+				client_pack.ack = 1;
+				nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 			    if (nbytes < 0){
 					printf("Error in sendto\n");
 				}
@@ -407,8 +412,8 @@ int main (int argc, char * argv[])
 		    if (client_pack.dataSize == -1) {
 				printf("Some error occured at server side.\n");
 			} else {
-
-				nbytes = sendto(sock, "Packet Received", 17, 0, (struct sockaddr *)&server, sizeof(server));
+				client_pack.ack = 1;
+				nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, sizeof(server));
 			    if (nbytes < 0){
 					printf("Error in sendto\n");
 				}
