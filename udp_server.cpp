@@ -303,11 +303,12 @@ int main (int argc, char * argv[] )
 
 			    //printf("DATA SIZE:%d:\n", pack.dataSize);
 			  	//printf("Buffer Content:%d  %lu   %lu  %lu\n", byte_read, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(pack.data));
-			  	printf("BUFFER:%s:\n\n", pack.data);
+			  	//printf("BUFFER:%s:\n\n", pack.data);
 
 			  	int resend_count =0;
 			  	RESEND_GET:
-			  		printf("Packet Sent: %s  %d\n", pack.filename, count);
+			  		printf("Packet: %d     bytes_read: %d\n", count, byte_read);
+			  		
 				    nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
 
 				    if (nbytes < 0){

@@ -309,11 +309,12 @@ int main (int argc, char * argv[])
 
 				    memcpy(file_buffer, client_pack.data, client_pack.dataSize);
 				    int fileSize = fwrite(file_buffer , sizeof(unsigned char), client_pack.dataSize, file);
-				    printf("packetExpected: %d   PacketRec: %d     bytes_wrote: %d   client_data_size: %d\n", packetExpected, client_pack.seqNo, fileSize, client_pack.dataSize);
+				    printf("Packet: %d     bytes_wrote: %d\n", packetExpected, fileSize);
+				    //printf("packetExpected: %d   PacketRec: %d     bytes_wrote: %d   client_data_size: %d\n", packetExpected, client_pack.seqNo, fileSize, client_pack.dataSize);
 				   //  printf("CLIENT ID:%d:\n", client_pack.clientId);
 				   //  printf("DATA SIZE:%d:\n", client_pack.dataSize);
 				  	// printf("Buffer Content:%d  %lu   %lu  %lu\n", fileSize, sizeof(file_buffer), getBufferContentSize(file_buffer), getBufferContentSize(client_pack.data));
-				  	 printf("BUFFER:%s:\n\n", client_pack.data);
+				  	// printf("BUFFER:%s:\n\n", client_pack.data);
 
 				    if( fileSize < 0)
 				    {
