@@ -41,10 +41,16 @@ size_t getFileSize(FILE *file) {
 
 int getTotalNumberOfPackets(size_t file_size) {
 
-	int packets = file_size/FILEPACKETSIZE;
-  	if (file_size % FILEPACKETSIZE > 0) {
+	int fileSize = FILEPACKETSIZE;
+	int packets = 0;
+	packets = file_size/fileSize;
+	
+	//printf("Packets: %lu  %d\n", file_size, packets);
+  	if (file_size % fileSize > 0) {
   		packets++;
   	}
+  	
+  	//printf("Packets: %d\n", packets);
   	return packets;
 }
 
@@ -219,7 +225,7 @@ int main (int argc, char * argv[] )
 	    			waitCount++;
 	    			if (waitCount > 20) {
 	    				printf("Client Not sending packets. Moving on...\n");
-	    				//remove(client_pack.filename);
+	    				remove(client_pack.filename);
 	    				break;
 	    			}
 	    			flagMD = 0;
