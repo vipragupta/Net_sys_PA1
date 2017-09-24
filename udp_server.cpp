@@ -342,7 +342,7 @@ int main (int argc, char * argv[] )
 	    		printf("Error Socket timeout");
 			}
 		} else if (strcmp(client_pack.command, "ls") == 0) {
-
+			printf("Inside LS:\n");
 			DIR *dir;
 			struct dirent *ent;
 			struct packet pack;
@@ -350,6 +350,7 @@ int main (int argc, char * argv[] )
 			int fileNumber = 0;
 
 			if ((dir = opendir ("./serverDir/")) != NULL) {
+				printf("Directory opened:\n");
 			    while ((ent = readdir (dir)) != NULL) {
 			    	printf("%s\t", ent->d_name);
 
@@ -364,6 +365,7 @@ int main (int argc, char * argv[] )
 						fileNumber++;
 					}
 				}
+				printf("\nfound all files:\n");
 				closedir (dir);
 				pack.dataSize = fileNumber;
 				pack.totalPackets = 1;
@@ -371,7 +373,7 @@ int main (int argc, char * argv[] )
 				memset(pack.command, '\0', sizeof(pack.command));
 				strcpy(pack.command, "ls");
 				int resend_count = 0;
-
+				printf("Sending Packet\n");
 				RESEND_LS:
 					nbytes = sendto(sock, &pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
 
@@ -385,6 +387,7 @@ int main (int argc, char * argv[] )
 					} else {
 						if (resend_count < 5) {
 							resend_count++;
+							printf("Client Didn't ack the packet, Resending...\n");
 							goto RESEND_LS;
 						} else {
 							printf("Resent 5 times, still client didn't acknowledge. Please try again later.\n");
