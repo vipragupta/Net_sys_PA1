@@ -347,6 +347,7 @@ int main (int argc, char * argv[])
 				}
 				if (waitTime > 5) {
 					printf("Server not sending the Packet Expected. Please try again.\n");
+					if (remove(client_pack.filename));
 					break;
 				}
 				printf("--------------------------------------\n");
