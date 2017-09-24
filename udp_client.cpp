@@ -143,7 +143,7 @@ int main (int argc, char * argv[])
 		fgets(option, sizeof(option), stdin);
 		options = strtok(option, "\n");
 		printf("--------------------------------------\n");
-		printf("You selected:%s:\n\n", option);
+		printf("You selected:%s\n\n", option);
 
 		char *optionCmd;
 		char *filename;
@@ -240,6 +240,7 @@ int main (int argc, char * argv[])
 					}
 				count++;
 			}
+			printf("File Transfer successfully!!!\n");
 			if (count == 0) {
 				printf("\nTotal Packets sent: %d\n", count);
 			} else {
@@ -277,6 +278,8 @@ int main (int argc, char * argv[])
 			}
 			printf("Waiting for first Packet...\n");
 		  	while (1) {
+		  		
+
 			  	struct packet client_pack;
 			  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
 			    {
@@ -289,10 +292,14 @@ int main (int argc, char * argv[])
 			    	continue;
 			    }
 			    
+			    printf("\n---------------------------------------\n");
+	    		printf("Receive Packet number: %d\n", client_pack.seqNo);
+
 			    if (client_pack.dataSize == -1) {
 			    	printf("Server Says: Given File Name does not exist\n");
 			    	break;
 			    }
+
 			    if (packetExpected == client_pack.seqNo) {
 				    printf("Received Packet: %s  %d\n", client_pack.filename, client_pack.seqNo);
 

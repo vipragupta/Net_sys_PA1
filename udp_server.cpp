@@ -150,6 +150,8 @@ int main (int argc, char * argv[] )
 			int flagMD = 1;
 			int flagPacketProcessed = 0;
 	    	while (1) {
+	    		printf("\n---------------------------------------\n");
+	    		printf("Receive Packet number: %d\n", client_pack.seqNo);
 	    		if (flagPacketProcessed == 0 && packetExpected == client_pack.seqNo) {
 
 				    char filename[100];
@@ -177,7 +179,7 @@ int main (int argc, char * argv[] )
 				    }
 				    struct packet sendPacket;
 				    sendPacket.ack = 1 ;
-				    sendPacket.seqNo = packetExpected;
+				    sendPacket.seqNo = client_pack.seqNo;
 
 					nbytes = sendto(sock, &sendPacket, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
 					if (nbytes < 0){
@@ -197,9 +199,12 @@ int main (int argc, char * argv[] )
 						if (nbytes < 0){
 							printf("Error in sendto\n");
 						}
+						printf("File Transfer successfully!!!\n");
 						break;
 					}
 				}  else if (packetExpected > client_pack.seqNo) {
+					client_pack.ack = 1;
+
 					nbytes = sendto(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&remote, remote_length);
 					if (nbytes < 0){
 						printf("Error in sendto\n");
@@ -230,10 +235,10 @@ int main (int argc, char * argv[] )
 		} else if (strcmp(client_pack.command,"get") == 0) {
 
 			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
+			tv.tv_usec = 600000;		//400ms
 
-		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-	    		printf("Error Socket timeout");
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout\n");
 			}
 			FILE *file;
 			char filename[50];
@@ -261,13 +266,6 @@ int main (int argc, char * argv[] )
 		  	int totalPackets = getTotalNumberOfPackets(file_size);
 		  	printf("Total Packets: %d\n", totalPackets);
 
-		  	tv.tv_sec = 0;
-			tv.tv_usec = 50000;
-
-		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-	    		printf("Error Socket timeout");
-			}
-
 		  	while (count < totalPackets) {
 		  		printf("------------------------------------------------------------------------\n");
 		  		bzero(file_buffer,sizeof(file_buffer));
@@ -293,7 +291,7 @@ int main (int argc, char * argv[] )
 				pack.totalPackets = totalPackets;
 				pack.seqNo = count;
 				memset(pack.command, '\0', sizeof(pack.command));
-			    strcpy(pack.command, "put");
+			    strcpy(pack.command, "get");
 			    memcpy(pack.data, file_buffer, sizeof(file_buffer));
 
 			  	int resend_count = 0;
@@ -335,16 +333,21 @@ int main (int argc, char * argv[] )
 				printf("Client Acknowledged Packet %d\n", count-1);
 			} 
 
-			printf("Total Packets sent: %d\n", count-1);
+			if (count == 0) {
+				printf("\nTotal Packets sent: %d\n", count);
+			} else {
+				printf("\nTotal Packets sent: %d\n", count - 1 );
+			}
+			
 			tv.tv_sec = 20;
-			tv.tv_usec = 100000;
+			tv.tv_usec = 0;
 
 		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 	    		printf("Error Socket timeout");
 			}
 		} else if (strcmp(client_pack.command, "ls") == 0) {
 			tv.tv_sec = 0;
-			tv.tv_usec = 50000;
+			tv.tv_usec = 500000;
 
 		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 	    		printf("Error Socket timeout");
