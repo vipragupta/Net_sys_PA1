@@ -342,6 +342,12 @@ int main (int argc, char * argv[] )
 	    		printf("Error Socket timeout");
 			}
 		} else if (strcmp(client_pack.command, "ls") == 0) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 50000;
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout");
+			}
 			printf("Inside LS:\n");
 			DIR *dir;
 			struct dirent *ent;

@@ -377,6 +377,12 @@ int main (int argc, char * argv[])
 	
 			}
 		} else if (strcmp(optionCmd, "ls") == 0 ) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 100000;
+
+		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+	    		printf("Error Socket timeout");
+			}
 			printf("\n");
 			struct packet pack;
 		    pack.clientId = client;
