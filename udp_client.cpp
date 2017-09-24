@@ -227,8 +227,6 @@ int main (int argc, char * argv[])
 					if (nbytes > 0 || receivedPacket.seqNo == count && receivedPacket.ack == 1) {
 						printf("Server Acknowledged Packet  %d\n", count);
 					} else {
-						//printf("nbytes:%d   receivedPacket.seqNo: %d     count: %d    receivedPacket.ack: %d\n", nbytes, receivedPacket.seqNo, count, receivedPacket.ack);
-						
 						if (retry < 5) {
 							printf("Timer timeout, Resending packet %d\n", count);
 							retry++;
@@ -243,7 +241,7 @@ int main (int argc, char * argv[])
 			if (count == 0) {
 				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count, totalPackets);
 			} else {
-				printf("\nTotal Packets sent: %d    totalPackets: %d \n", count - 1, totalPackets);
+				printf("\nTotal Packets sent: %d    totalPackets: %d \n", count - 1, totalPackets - 1 );
 			}
 		} else if (strcmp(optionCmd, "get") == 0) {
 		    printf("\n");
@@ -270,15 +268,14 @@ int main (int argc, char * argv[])
 		  	int waitTime = 0;
 
 		  	tv.tv_sec = 0;
-			tv.tv_usec = 50000;
+			tv.tv_usec = 500000;
 
 		    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 	    		printf("Error Socket timeout");
 			}
 			printf("Waiting for first Packet...\n");
+		  	
 		  	while (1) {
-		  		
-
 			  	struct packet client_pack;
 			  	if (recvfrom(sock, &client_pack, sizeof(packet), 0, (struct sockaddr *)&server, &server_length) < 0)
 			    {
@@ -291,7 +288,6 @@ int main (int argc, char * argv[])
 			    	continue;
 			    }
 			    
-			    printf("\n---------------------------------------\n");
 	    		printf("Receive Packet number: %d\n", client_pack.seqNo);
 
 			    if (client_pack.dataSize == -1) {
@@ -300,6 +296,7 @@ int main (int argc, char * argv[])
 			    }
 
 			    if (packetExpected == client_pack.seqNo) {
+			    	waitTime = 0;
 				    printf("Received Packet: %s  %d\n", client_pack.filename, client_pack.seqNo);
 
 				    FILE *file;
@@ -352,6 +349,7 @@ int main (int argc, char * argv[])
 					printf("Server not sending the Packet Expected. Please try again.\n");
 					break;
 				}
+				printf("--------------------------------------\n");
 			}
 
 		} else if (strcmp(optionCmd, "del") == 0) {

@@ -230,7 +230,7 @@ int main (int argc, char * argv[] )
 	    			flagPacketProcessed = 0;
 	    		}
 			}
-			printf("Total Packets Received: %d\n", packetExpected-1);
+			printf("\nTotal Packets Received: %d\n", packetExpected-1);
 
 		} else if (strcmp(client_pack.command,"get") == 0) {
 
@@ -325,18 +325,18 @@ int main (int argc, char * argv[] )
 				count++;
 			}
 
-			struct packet receivedPacket;
+			// struct packet receivedPacket;
 					
-			nbytes = recvfrom(sock, &receivedPacket, sizeof(receivedPacket), 0, (struct sockaddr *)&remote, &remote_length);  
+			// nbytes = recvfrom(sock, &receivedPacket, sizeof(receivedPacket), 0, (struct sockaddr *)&remote, &remote_length);  
 			
-			if (nbytes > 0 && receivedPacket.seqNo == count-1 && receivedPacket.ack == 1) {
-				printf(":Client Acknowledged Packet %d\n", count-1);
-			} 
+			// if (nbytes > 0 && receivedPacket.seqNo == count-1 && receivedPacket.ack == 1) {
+			// 	printf(":Client Acknowledged Packet %d\n", count-1);
+			// } 
 
 			if (count == 0) {
 				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count, totalPackets);
 			} else {
-				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count - 1, totalPackets);
+				printf("\nTotal Packets sent: %d   totalPackets: %d \n", count - 1, totalPackets - 1);
 			}
 
 			tv.tv_sec = 20;
